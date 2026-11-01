@@ -1,0 +1,4 @@
+repo: https://github.com/Aiven-Open/journalpump
+vulnerable_tag: 2.4.6 @ 3e1b59c8
+SNI-only partial fix (still check_hostname False if SSLContext()): 766b860 (2025-10-10) — NOT in 2.4.6
+create_default_context fix: 652975d / merge 34900c9 (2026-03) — NOT in 2.4.6
