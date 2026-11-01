@@ -1,4 +1,12 @@
 repo: https://github.com/Aiven-Open/journalpump
-vulnerable_tag: 2.4.6 @ 3e1b59c8
-SNI-only partial fix (still check_hostname False if SSLContext()): 766b860 (2025-10-10) — NOT in 2.4.6
-create_default_context fix: 652975d / merge 34900c9 (2026-03) — NOT in 2.4.6
+vulnerable_tag: 2.4.6
+vulnerable_commit: 3e1b59c8d95c1be8ad536088a389a3f36dec15a2
+vulnerable_rsyslog_sha256: 847a7e20997417a7b22ee212f5dd1ef230991817033dbdf6076435d25a7a4a47
+fixed_commit: 652975dceb712c6ea1506386dc1d78cb7cff7f50 (652975d create_default_context; includes 766b860 server_hostname)
+fixed_rsyslog_sha256: b04fe11028181cc31f1d8e3600ad88ce8378026c33a0a713909c2738d6296d24
+SNI_fix_commit: 766b860 (2025-10-10) — not in 2.4.6
+hostname_check_fix_commit: 652975d / merge 34900c9 — not in 2.4.6
+python: Python 3.13.5
+openssl: OpenSSL 3.5.7 9 Jun 2026 (Library: OpenSSL 3.5.7 9 Jun 2026)
+poc_run_utc: 2026-11-01T17:36:53.260190+00:00
+verdict: VULN CONFIRMED E2E

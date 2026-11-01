@@ -1,0 +1,45 @@
+=== C77 E2E TLS hostname verification PoC ===
+time_utc=2026-11-01T17:38:00.414653+00:00
+python=3.13.5
+openssl_mod=OpenSSL 3.5.7 9 Jun 2026
+vuln_rsyslog=/workspace/bounty-research/poc/r21-journalpump-tls-hostname/trees/v2.4.6/journalpump/rsyslog.py
+fix_rsyslog=/workspace/bounty-research/poc/r21-journalpump-tls-hostname/trees/fixed/journalpump/rsyslog.py
+vuln_sha256=847a7e20997417a7b22ee212f5dd1ef230991817033dbdf6076435d25a7a4a47
+fix_sha256=b04fe11028181cc31f1d8e3600ad88ce8378026c33a0a713909c2738d6296d24
+ca_crt_sha256=d895c3e1a8451e61316749d1e3445e21b370edee68b8e2355e36e0255ad11bb4
+attacker_crt_sha256=9ce1006593d82360ce5ef272cae0b639f1607a2613d004ba45bf8cf9e0282a87
+victim_crt_sha256=4aaeb6abd7e190d79411dd7f302b76c24cfb484bc72187f1ea87e99b82e5ddaa
+configured_server_hostname=logs.victim.test
+resolution=monkeypatch socket.getaddrinfo (harness only; NOT /etc/hosts)
+marker=C77-SYNTHETIC-LOG-LINE-DO-NOT-SUBMIT
+
+baseline SSLContext(PROTOCOL_TLS)+CERT_REQUIRED check_hostname=False
+baseline create_default_context check_hostname=True
+
+loaded SyslogTcpClient vuln from /workspace/bounty-research/poc/r21-journalpump-tls-hostname/trees/v2.4.6/journalpump/rsyslog.py
+loaded SyslogTcpClient fixed from /workspace/bounty-research/poc/r21-journalpump-tls-hostname/trees/fixed/journalpump/rsyslog.py
+
+--- CASE VULN_2.4.6_mismatch_attacker_cert (expect_success=True) ---
+PASS=True
+client=handshake+send ok; listener_err=None; recv=b'<14>1 2026-11-01T17:38:00Z poc-host c77-poc 1 C77 C77-SYNTHETIC-LOG-LINE-DO-NOT-SUBMIT\n'; sni=None; marker=True
+
+--- CASE FIXED_652975d_mismatch_attacker_cert (expect_success=False) ---
+PASS=True
+client=SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for 'logs.victim.test'. (_ssl.c:1029); listener_err=SSLError: [SSL: SSLV3_ALERT_BAD_CERTIFICATE] ssl/tls alert bad certificate (_ssl.c:1029); recv=None; sni=None; rejected=True; hostname_error=True
+
+--- CASE VULN_2.4.6_match_victim_cert_negctrl (expect_success=True) ---
+PASS=True
+client=handshake+send ok; listener_err=None; recv=b'<14>1 2026-11-01T17:38:00Z poc-host c77-poc 1 C77 C77-SYNTHETIC-LOG-LINE-DO-NOT-SUBMIT\n'; sni=None; marker=True
+
+--- CASE FIXED_652975d_match_victim_cert_negctrl (expect_success=True) ---
+PASS=True
+client=handshake+send ok; listener_err=None; recv=b'<14>1 2026-11-01T17:38:00Z poc-host c77-poc 1 C77 C77-SYNTHETIC-LOG-LINE-DO-NOT-SUBMIT\n'; sni=None; marker=True
+
+=== SUMMARY ===
+OK   VULN_2.4.6_mismatch_attacker_cert
+OK   FIXED_652975d_mismatch_attacker_cert
+OK   VULN_2.4.6_match_victim_cert_negctrl
+OK   FIXED_652975d_match_victim_cert_negctrl
+
+VERDICT: VULN CONFIRMED E2E
+journalpump 2.4.6 SyslogTcpClient completed TLS handshake and delivered the synthetic log to a listener presenting CN/SAN=attacker.invalid while configured for logs.victim.test; fixed 652975d rejected with hostname mismatch.

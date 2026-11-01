@@ -1,0 +1,1 @@
+journalpump 2.4.6 rsyslog TLS client skips certificate hostname verification (MITM of log stream)

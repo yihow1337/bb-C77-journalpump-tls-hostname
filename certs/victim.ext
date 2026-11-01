@@ -1,0 +1,6 @@
+basicConstraints=CA:FALSE
+keyUsage=critical,digitalSignature,keyEncipherment
+extendedKeyUsage=serverAuth
+subjectAltName=DNS:logs.victim.test
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer

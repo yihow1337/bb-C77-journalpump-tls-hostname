@@ -1,0 +1,10 @@
+# C77 evidence file digests (package members; tarball sha in ../../hashes.sha256)
+3a057112e841999d62f4eaa697b42e6ef1206048d2d30ac5decec1b7334f553d  poc_e2e_tls_hostname.py
+43bd1380a3d929f80a1835a4208a4d917736a019d1ff2f10352cfac6e111d956  poc_e2e_results.txt
+93523b018cec18df5c9652cb149b342df9d9b1760fc5837b909ca7533ab3a3c4  BC_DESCRIPTION.md
+847a7e20997417a7b22ee212f5dd1ef230991817033dbdf6076435d25a7a4a47  evidence/rsyslog_2.4.6.py
+b04fe11028181cc31f1d8e3600ad88ce8378026c33a0a713909c2738d6296d24  evidence/rsyslog_master.py
+d895c3e1a8451e61316749d1e3445e21b370edee68b8e2355e36e0255ad11bb4  certs/ca.crt
+9ce1006593d82360ce5ef272cae0b639f1607a2613d004ba45bf8cf9e0282a87  certs/attacker.crt
+4aaeb6abd7e190d79411dd7f302b76c24cfb484bc72187f1ea87e99b82e5ddaa  certs/victim.crt
+# EVIDENCE_C77.tar.gz sha256 (computed after this listing is sealed into the archive's sibling): see hashes.sha256

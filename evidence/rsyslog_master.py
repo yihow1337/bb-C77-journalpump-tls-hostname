@@ -2,9 +2,7 @@
 #
 # This file is under the Apache License, Version 2.0.
 # See the file `LICENSE` for details.
-from .util import escape_linebreaks
 from functools import partial
-from typing import Any
 
 import datetime
 import errno
@@ -13,47 +11,9 @@ import ssl
 
 NILVALUE = "-"
 
-# RFC 5424 section 6 limits for header fields, in bytes
-HOSTNAME_MAX = 255
-APP_NAME_MAX = 48
-PROCID_MAX = 128
-MSGID_MAX = 32
-
-# Space, C0 control characters and DEL; every other ASCII character is printable and kept
-_ASCII_UNSAFE = str.maketrans({chr(c): "_" for c in (*range(0x21), 0x7F)})
-
-
-def _sanitize_header_field(value: Any, max_bytes: int) -> str:
-    """Make a header field safe to embed in a syslog record.
-
-    Whitespace and control characters become "_", and an empty result becomes the NILVALUE. RFC 5424
-    specifies only ASCII for header fields, but rsyslog and most receivers accept UTF-8, so printable
-    non-ASCII is kept. Limits are in bytes; a multi-byte character is never cut in half.
-    """
-    if not value:
-        return NILVALUE
-    value = str(value)
-    if value.isascii():
-        cleaned = value.translate(_ASCII_UNSAFE)[:max_bytes]
-        return cleaned or NILVALUE
-    cleaned = "".join("_" if ch.isspace() or not ch.isprintable() else ch for ch in value)
-    truncated = cleaned.encode("utf-8")[:max_bytes].decode("utf-8", "ignore")
-    return truncated or NILVALUE
-
 
 # pylint: disable=unused-argument
-def _rfc_5424_formatter(
-    *,
-    pri: int,
-    rfc3339date: str,
-    rfc3164date: str,
-    hostname: str,
-    app_id: str,
-    proc_id: str,
-    msg_id: str,
-    msg: str,
-    sd: str | None,
-) -> bytes:
+def _rfc_5424_formatter(*, pri, rfc3339date, rfc3164date, hostname, app_id, proc_id, msg_id, msg, sd):
     data = f"<{pri}>1 {rfc3339date} {hostname} {app_id} {proc_id} {msg_id}"
     if sd is not None:
         data += f" [{sd}]"
@@ -62,23 +22,12 @@ def _rfc_5424_formatter(
 
 
 # pylint: disable=unused-argument
-def _rfc_3164_formatter(
-    *,
-    pri: int,
-    rfc3339date: str,
-    rfc3164date: str,
-    hostname: str,
-    app_id: str,
-    proc_id: str,
-    msg_id: str,
-    msg: str,
-    sd: str | None,
-) -> bytes:
+def _rfc_3164_formatter(*, pri, rfc3339date, rfc3164date, hostname, app_id, proc_id, msg_id, msg, sd):
     data = f"<{pri}>{rfc3164date} {hostname} {app_id}[{proc_id}]: {msg}\n"
     return data.encode("utf-8", "replace")
 
 
-def _custom_formatter(custom: str, **kwargs: Any) -> bytes:
+def _custom_formatter(custom, **kwargs):
     return custom.format(**kwargs).encode("utf-8", "replace")
 
 
@@ -97,7 +46,7 @@ _LOGLINE_VARS = {
 }
 
 
-def _generate_format(logline: str) -> str:
+def _generate_format(logline):
     """Simple tokenizer for converting rsyslog format string to python format string"""
     frmt = ""
     in_token = False
@@ -128,31 +77,24 @@ class SyslogTcpClient:
     def __init__(
         self,
         *,
-        server: str,
-        port: int,
-        rfc: str,
-        max_msg: int | None = None,
-        protocol: str | None = None,
-        cacerts: str | None = None,
-        keyfile: str | None = None,
-        certfile: str | None = None,
-        log_format: str | None = None,
-        octet_counted_framing: bool | None = None,
-        escape_newlines: bool | None = None,
-    ) -> None:
-        self.socket: socket.socket | None = None
+        server,
+        port,
+        rfc,
+        max_msg=None,
+        protocol=None,
+        cacerts=None,
+        keyfile=None,
+        certfile=None,
+        log_format=None,
+        octet_counted_framing=None,
+    ):
+        self.socket = None
         self.server = server
         self.port = port
         self.max_msg = max_msg or 2048
         self.socket_proto = socket.SOCK_STREAM
-        self.ssl_context: ssl.SSLContext | None = None
+        self.ssl_context = None
         self.octet_counted_framing = False if octet_counted_framing is None else octet_counted_framing
-        # Newline escaping is on by default (only an explicit False disables it), but octet-counted framing wins
-        if self.octet_counted_framing:
-            self.escape_newlines = False
-        else:
-            self.escape_newlines = True if escape_newlines is None else escape_newlines
-
         if rfc == "RFC5424":
             self.formatter = _rfc_5424_formatter
         elif rfc == "RFC3164":
@@ -173,7 +115,7 @@ class SyslogTcpClient:
 
         self._connect()
 
-    def _connect(self) -> None:
+    def _connect(self):
         try:
             last_connection_error = None
             for addr_info in socket.getaddrinfo(self.server, self.port, socket.AF_UNSPEC, self.socket_proto):
@@ -186,53 +128,48 @@ class SyslogTcpClient:
                         self.socket = self.ssl_context.wrap_socket(self.socket, server_hostname=self.server)
                     self.socket.connect(sock_addr)
                     return
-                except OSError as ex:
+                except Exception as ex:  # pylint: disable=broad-except
                     if self.socket is not None:
                         self.socket.close()
                     last_connection_error = ex
         except socket.gaierror as ex:
             raise ValueError(f"Invalid address {self.server}:{self.port}") from ex
 
-        if last_connection_error is None:
-            raise OSError(f"No addresses for {self.server}:{self.port}")
         raise last_connection_error
 
-    def close(self) -> None:
+    def close(self):
         if self.socket is None:
             return
         try:
             self.socket.close()
-        except OSError:
+        except Exception:  # pylint: disable=broad-except
             pass
         finally:
             self.socket = None
 
-    def send(self, message: bytes) -> None:
+    def send(self, message):
         for retry in [True, False]:
             try:
                 if self.socket is None:
                     self._connect()
-                assert self.socket is not None
 
-                # RFC 6587 defines two framing methods for syslog over TCP.
+                # Syslog over TCP (RFC 6587) supports 2 message framing methods:
+                # - Octet-counted framing: Each message is prefixed with its
+                #     length and a space (<length> <message>).
+                # - Non-transparent framing: Each message is terminated by a
+                #     newline (\n).
+                # So far, only non-transparent framing was used by journalpump
+                # and multi-line log messages were terminated at first newline.
+                # We keep this behavior by default, but now expose a new config
+                # allowing to switch to octet-counted framing. Provided that this
+                # method is supported by the syslog server, multi-line messages
+                # will only get truncated according to the max_message_size.
                 if self.octet_counted_framing:
-                    # Octet-counted framing (RFC 6587 section 3.4.1):
-                    # <MSGLEN> SP <SYSLOG-MSG>. The receiver reads exactly
-                    # <MSGLEN> bytes after the space, so the advertised length
-                    # must equal the body bytes actually sent. max_message_size
-                    # bounds the body (matching rsyslog MaxMessageSize semantics).
-                    # No trailing newline — it would be parsed as the start of
-                    # the next frame's length prefix and desync the stream.
-                    body = message[: self.max_msg]
-                    frame = f"{len(body)} ".encode() + body
-                    self.socket.sendall(frame)
-                else:
-                    # Non-transparent framing (RFC 6587 section 3.4.2): frames
-                    # are delimited by a trailing newline. The formatter already
-                    # appends '\n'; when we truncate we add it explicitly.
-                    self.socket.sendall(message[: self.max_msg - 1])
-                    if len(message) >= self.max_msg:
-                        self.socket.sendall(b"\n")
+                    message = f"{len(message)} ".encode("utf-8") + message
+
+                self.socket.sendall(message[: self.max_msg - 1])
+                if len(message) >= self.max_msg:
+                    self.socket.sendall(b"\n")
 
                 break
             except Exception as ex:  # pylint: disable=broad-except
@@ -241,44 +178,37 @@ class SyslogTcpClient:
                 if not (retry and self._should_retry(ex=ex)):
                     raise
 
-    def _should_retry(self, *, ex: BaseException) -> bool:
+    def _should_retry(self, *, ex):
         if isinstance(ex, OSError):
             return ex.errno in (errno.EPIPE, errno.ECONNRESET, errno.ETIMEDOUT)
         # retry to send when the SSL connection was closed unexpectedly
         # with message 'EOF occurred in violation of protocol'
-        return isinstance(ex, ssl.SSLEOFError)
+        if isinstance(ex, ssl.SSLEOFError):
+            return True
+        return False
 
     def log(
         self,
         *,
-        facility: int,
-        severity: int,
-        timestamp: str,
-        hostname: str | None,
-        program: str | None,
-        pid: str | int | None = None,
-        msgid: str | None = None,
-        msg: str | None = None,
-        sd: str | None = None,
-    ) -> None:
+        facility,
+        severity,
+        timestamp,
+        hostname,
+        program,
+        pid=None,
+        msgid=None,
+        msg=None,
+        sd=None,
+    ):
         if 0 <= facility <= 23 and 0 <= severity <= 7:
             pri = facility * 8 + severity
         else:
             pri = 13
-
-        app_id = _sanitize_header_field(program, APP_NAME_MAX)
-        hostname = _sanitize_header_field(hostname, HOSTNAME_MAX)
-        proc_id = _sanitize_header_field(str(pid) if pid else None, PROCID_MAX)
-        msg_id = _sanitize_header_field(msgid, MSGID_MAX)
+        app_id = program if program else NILVALUE
+        proc_id = pid if pid else NILVALUE
+        msg_id = msgid if msgid else NILVALUE
         message = msg if msg else NILVALUE
-
-        # Callers pass UTC; RFC3164 has no offset field, so this only reformats the wall clock.
-        parsed_timestamp = datetime.datetime.strptime(timestamp[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=datetime.UTC)
-        rfc3164date = parsed_timestamp.strftime("%b %d %H:%M:%S")
-        # Header fields are sanitized above; the timestamp is generated by journalpump and sd comes from
-        # operator config (it must stay valid RFC 5424), so neither is escaped.
-        if self.escape_newlines:
-            message = escape_linebreaks(message)
+        rfc3164date = datetime.datetime.strptime(timestamp[:19], "%Y-%m-%dT%H:%M:%S").strftime("%b %d %H:%M:%S")
 
         self.send(
             self.formatter(

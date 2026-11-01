@@ -1,0 +1,6 @@
+basicConstraints=CA:FALSE
+keyUsage=critical,digitalSignature,keyEncipherment
+extendedKeyUsage=serverAuth
+subjectAltName=DNS:attacker.invalid
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer

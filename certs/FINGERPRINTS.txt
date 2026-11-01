@@ -1,0 +1,4 @@
+ca: sha256 Fingerprint=72:CE:EE:69:92:C9:A5:AC:15:84:65:14:C7:D3:46:CB:31:BF:71:91:B9:9E:A4:97:67:7D:F5:C3:2E:AB:72:BB
+attacker: sha256 Fingerprint=CB:41:94:07:90:51:90:9F:EB:28:87:4E:65:C2:60:92:00:1B:54:FC:1D:10:26:81:44:39:6C:02:27:76:3C:26
+victim: sha256 Fingerprint=A3:5A:93:82:60:4E:DF:0A:0E:F1:4E:02:6B:C3:EA:99:98:0F:CC:10:13:D4:93:A2:83:00:8B:3C:5C:21:1B:1E
+note: private keys intentionally excluded from evidence package; regenerate with gen_certs.sh
